@@ -18,8 +18,9 @@ public class MainActivity extends Activity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        RSSFeedParser parser = new RSSFeedParser("http://rss.cnn.com/rss/cnn_topstories.rss");
-        parser.readFeed();
         mTextView = binding.text;
+
+        RSSFeedParser parser = new RSSFeedParser(mTextView, "https://us-central1-compact-moment-206418.cloudfunctions.net/newsfeed/feed.rss", "55a5dd7f-2af4-489d-b11b-c84974154a50");
+        parser.execute();
     }
 }

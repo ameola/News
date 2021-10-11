@@ -1,7 +1,11 @@
 package com.ameola.news;
 
+import android.os.AsyncTask;
+import android.widget.TextView;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -9,10 +13,9 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-public class RSSFeedParser {
+public class RSSFeedParser extends AsyncTask<Void, Void, Feed> {
     static final String TITLE = "title";
     static final String DESCRIPTION = "description";
-    static final String CHANNEL = "channel";
     static final String LANGUAGE = "language";
     static final String COPYRIGHT = "copyright";
     static final String LINK = "link";
@@ -21,20 +24,26 @@ public class RSSFeedParser {
     static final String PUB_DATE = "pubDate";
     static final String GUID = "guid";
 
+    final TextView mTextView;
     final URL url;
+    final String authToken;
 
-    public RSSFeedParser(String feedUrl) {
+    public RSSFeedParser(TextView textView, String feedUrl, String authToken) {
         try {
             this.url = new URL(feedUrl);
+            this.mTextView = textView;
+            this.authToken = authToken;
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public Feed readFeed() {
+    public Feed doInBackground(Void... empty) {
         Feed feed = null;
+
         try {
             boolean isFeedHeader = true;
+
             // Set header values intial to the empty string
             String description = "";
             String title = "";
@@ -54,90 +63,84 @@ public class RSSFeedParser {
             parser.setInput(in, null);
 
             int eventType = parser.getEventType();
-            FeedMessage currentMessage;
 
+            String text = "";
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                String tagname = parser.getName();
-                String text;
+                String tagName = parser.getName();
 
                 switch (eventType) {
+                    case XmlPullParser.TEXT:
+                        text = parser.getText();
+                        break;
+
                     case XmlPullParser.START_TAG:
-                        if (tagname.equalsIgnoreCase(ITEM)) {
-                            currentMessage = new FeedMessage();
-                            break;
+                        if (tagName.equals(ITEM) && isFeedHeader) {
+                            feed = new Feed(title, link, description, language,
+                                    copyright, pubdate);
+                            isFeedHeader = false;
                         }
                         break;
 
-                case XmlPullParser.TEXT:
-                    text = parser.getText();
-                    break;
-
                     case XmlPullParser.END_TAG:
-                        switch (tagname) {
+                        switch (tagName) {
                             case ITEM:
-                                feed = new Feed(title, link, description, language,
-                                    copyright, pubdate);
+                                FeedMessage message = new FeedMessage();
+                                message.setAuthor(author);
+                                message.setDescription(description);
+                                message.setGuid(guid);
+                                message.setLink(link);
+                                message.setTitle(title);
+                                feed.getMessages().add(message);
                                 break;
                             case TITLE:
-                                title = getCharacterData(event, eventReader);
+                                title = text;
                                 break;
                             case DESCRIPTION:
-                                description = getCharacterData(event, eventReader);
+                                description = text;
                                 break;
                             case LINK:
-                                link = getCharacterData(event, eventReader);
+                                link = text;
                                 break;
                             case GUID:
-                                guid = getCharacterData(event, eventReader);
+                                guid = text;
                                 break;
                             case LANGUAGE:
-                                language = getCharacterData(event, eventReader);
+                                language = text;
                                 break;
                             case AUTHOR:
-                                author = getCharacterData(event, eventReader);
+                                author = text;
                                 break;
                             case PUB_DATE:
-                                pubdate = getCharacterData(event, eventReader);
+                                pubdate = text;
                                 break;
                             case COPYRIGHT:
-                                copyright = getCharacterData(event, eventReader);
+                                copyright = text;
                                 break;
-                    }
-                } else if (event.isEndElement()) {
-                    if (event.asEndElement().getName().getLocalPart() == (ITEM)) {
-                        FeedMessage message = new FeedMessage();
-                        message.setAuthor(author);
-                        message.setDescription(description);
-                        message.setGuid(guid);
-                        message.setLink(link);
-                        message.setTitle(title);
-                        feed.getMessages().add(message);
-                        event = eventReader.nextEvent();
-                        continue;
-                    }
+                        }
+                        break;
                 }
+
+                parser.next();
+                eventType = parser.getEventType();
             }
-        } catch (XMLStreamException | XmlPullParserException e) {
+        } catch (XmlPullParserException | IOException e) {
             throw new RuntimeException(e);
         }
-        return feed;
-    }
 
-    private String getCharacterData(XMLEvent event, XMLEventReader eventReader)
-            throws XMLStreamException {
-        String result = "";
-        event = eventReader.nextEvent();
-        if (event instanceof Characters) {
-            result = event.asCharacters().getData();
-        }
-        return result;
+        return feed;
     }
 
     private InputStream read() {
         try {
-            return url.openStream();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("auth_token", authToken);
+            return conn.getInputStream();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected void onPostExecute(Feed feed) {
+        mTextView.setText(feed.title);
     }
 }
