@@ -1,7 +1,8 @@
 package com.ameola.news;
 
 import android.os.AsyncTask;
-import android.widget.TextView;
+
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,14 +25,17 @@ public class RSSFeedParser extends AsyncTask<Void, Void, Feed> {
     static final String PUB_DATE = "pubDate";
     static final String GUID = "guid";
 
-    final TextView mTextView;
+    final RecyclerView recyclerView;
+    private FeedMessageAdapter adapter;
+    private Feed feed;
+
     final URL url;
     final String authToken;
 
-    public RSSFeedParser(TextView textView, String feedUrl, String authToken) {
+    public RSSFeedParser(RecyclerView recyclerView, String feedUrl, String authToken) {
         try {
             this.url = new URL(feedUrl);
-            this.mTextView = textView;
+            this.recyclerView = recyclerView;
             this.authToken = authToken;
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
@@ -39,8 +43,6 @@ public class RSSFeedParser extends AsyncTask<Void, Void, Feed> {
     }
 
     public Feed doInBackground(Void... empty) {
-        Feed feed = null;
-
         try {
             boolean isFeedHeader = true;
 
@@ -75,9 +77,15 @@ public class RSSFeedParser extends AsyncTask<Void, Void, Feed> {
 
                     case XmlPullParser.START_TAG:
                         if (tagName.equals(ITEM) && isFeedHeader) {
-                            feed = new Feed(title, link, description, language,
-                                    copyright, pubdate);
+                            this.feed = new Feed(
+                            title,
+                            link,
+                            description,
+                            language,
+                            copyright,
+                            pubdate);
                             isFeedHeader = false;
+                            feed.getMessages().add(new FeedMessage());
                         }
                         break;
 
@@ -141,6 +149,7 @@ public class RSSFeedParser extends AsyncTask<Void, Void, Feed> {
     }
 
     protected void onPostExecute(Feed feed) {
-        mTextView.setText(feed.title);
+        adapter = new FeedMessageAdapter(feed.getMessages());
+        recyclerView.setAdapter(adapter);
     }
 }

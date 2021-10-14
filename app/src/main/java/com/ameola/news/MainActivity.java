@@ -4,11 +4,13 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.widget.TextView;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.ameola.news.databinding.ActivityMainBinding;
 
 public class MainActivity extends Activity {
 
-    private TextView mTextView;
     private ActivityMainBinding binding;
 
     @Override
@@ -18,9 +20,12 @@ public class MainActivity extends Activity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        mTextView = binding.text;
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
 
-        RSSFeedParser parser = new RSSFeedParser(mTextView, "https://us-central1-compact-moment-206418.cloudfunctions.net/newsfeed/feed.rss", "55a5dd7f-2af4-489d-b11b-c84974154a50");
+        recyclerView.setLayoutManager(layoutManager);
+
+        RSSFeedParser parser = new RSSFeedParser(recyclerView, "https://us-central1-compact-moment-206418.cloudfunctions.net/newsfeed/feed.rss", "55a5dd7f-2af4-489d-b11b-c84974154a50");
         parser.execute();
     }
 }
